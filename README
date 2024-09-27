@@ -1,0 +1,5 @@
+Sample using OpenAI models with function calling and json responses
+Based on this diagram by R. Jacobs
+![Alt text](eventClassification.jpg?raw=true "Title")
+
+To run it use visual studio or dotnet commandline
