@@ -1,4 +1,5 @@
 Sample using OpenAI models with function calling and json responses
+
 Based on this diagram by R. Jacobs
 ![Event Classification](https://github.com/vin-bush/EventClassifier/blob/main/eventClassification.png?raw=true "Event Classification")
 
