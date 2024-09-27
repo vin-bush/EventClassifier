@@ -1,4 +1,4 @@
-Sample using OpenAI models with function calling and json responses
+Semantic kernel sample using OpenAI models with function calling and json responses
 
 Based on this diagram by R. Jacobs
 
