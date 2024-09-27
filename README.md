@@ -1,6 +1,6 @@
 Sample using OpenAI models with function calling and json responses
 Based on this diagram by R. Jacobs
-![Event Classification](https://github.com/vin-bush/EventClassifier/edit/main/eventClassification.jpg?raw=true "Event Classification")
+![Event Classification](https://github.com/vin-bush/EventClassifier/blob/main/eventClassification.jpg?raw=true "Event Classification")
 
 You will need an OpenAI Api Key to run this sample
 
