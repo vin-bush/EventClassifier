@@ -1,6 +1,4 @@
-using System.Text.Json;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
@@ -23,59 +21,50 @@ Respond in JSON format with the following JSON schema:
 Respond with null if there is insufficient information to deduce any of the above attributes.
 """;
 
-    public async Task RunAsync(string UserPrompt)
-    {
-        // Create a kernel with OpenAI chat completion
-#pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 #pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-        ChatCompletionAgent agent =
-            new()
-            {
-                Name = "EventClassifier",
-                Instructions = _instructions,
-                Kernel = Kernel
-                    .CreateBuilder()
-                    .AddOpenAIChatCompletion(
-                        modelId: Configuration.OpenAI.ChatModelId,
-                        apiKey: Configuration.OpenAI.ApiKey
-                    )
-                    .Build(),
-                Arguments = new KernelArguments(
-                    new OpenAIPromptExecutionSettings
-                    {
-                        MaxTokens = 500,
-                        Temperature = 0.5,
-                        ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-                        ResponseFormat = "json_object",
-                    }
-                ),
-            };
+    private readonly PromptExecutionSettings _promptExecutionSettings =
+        new OpenAIPromptExecutionSettings()
+        {
+            MaxTokens = 500,
+            Temperature = 0.1,
+            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+            ResponseFormat = "json",
+            ChatSystemPrompt =
+                @"
+Assistant is a large language model. 
+This assistant uses plugins to complete it's task.",
+        };
+#pragma warning restore SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-        // Initialize plugins and add to the agent's Kernel (same as direct Kernel usage).
-        agent.Kernel.Plugins.Add(KernelPluginFactory.CreateFromType<EventComplexityPlugin>());
-        agent.Kernel.Plugins.Add(KernelPluginFactory.CreateFromType<EventDurationPlugin>());
-        agent.Kernel.Plugins.Add(KernelPluginFactory.CreateFromType<EventSizePlugin>());
-        agent.Kernel.Plugins.Add(KernelPluginFactory.CreateFromType<EventTypePlugin>());
+    private readonly Kernel _kernel;
+    private readonly IChatCompletionService _chatCompletionService;
 
-        // Create the chat history to capture the agent interaction.
+    public EventClassifierAgent(IChatCompletionService chatCompletionService)
+    {
+        IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
+        kernelBuilder
+            .Plugins.Add(KernelPluginFactory.CreateFromType<EventComplexityPlugin>())
+            .Add(KernelPluginFactory.CreateFromType<EventDurationPlugin>())
+            .Add(KernelPluginFactory.CreateFromType<EventSizePlugin>())
+            .Add(KernelPluginFactory.CreateFromType<EventTypePlugin>());
+
+        _kernel = kernelBuilder.Build();
+        _chatCompletionService = chatCompletionService;
+    }
+
+    public async Task RunAsync(string prompt)
+    {
         ChatHistory chat = [];
 
-        // Respond to user input, invoking functions where appropriate.
-        await InvokeAgentAsync(UserPrompt);
+        chat.AddSystemMessage(_instructions);
+        chat.AddUserMessage(prompt);
 
-        // Local function to invoke agent and display the conversation messages.
-        async Task InvokeAgentAsync(string input)
-        {
-            chat.Add(new ChatMessageContent(AuthorRole.User, input));
-
-            await foreach (ChatMessageContent content in agent.InvokeAsync(chat))
-            {
-                chat.Add(content);
-                Console.WriteLine($"# {content.Role}: '{content.Content}'");
-            }
-        }
-
-#pragma warning restore SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-#pragma warning restore SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        ChatMessageContent response = await _chatCompletionService.GetChatMessageContentAsync(
+            chat,
+            executionSettings: _promptExecutionSettings,
+            kernel: _kernel
+        );
+        chat.Add(response);
+        Console.WriteLine($"# {response.Role}: '{response.Content}'");
     }
 }
